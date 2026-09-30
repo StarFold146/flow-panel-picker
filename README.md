@@ -7,7 +7,14 @@ You list the dyes you have for each marker. The app picks one dye per marker so 
 the most similar pair of dyes in the panel is as different as possible. Markers ticked
 as **key** are placed first: the app keeps their dyes far away from everything else.
 
-## Run it
+## Use it online
+
+**https://starfold146.github.io/flow-panel-picker/**
+
+Nothing to install. The app runs entirely in your browser (via [stlite](https://github.com/whitphx/stlite)),
+so any file you upload stays on your computer. The first load takes about half a minute.
+
+## Run it locally
 
 ```bash
 pip install -r requirements.txt

@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Spectral Panel Picker</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@1.9.2/build/stlite.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      // Runs app.py in the browser with stlite (no server needed).
+      import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@1.9.2/build/stlite.js";
+      mount(
+        {
+          requirements: ["plotly", "jinja2"],
+          entrypoint: "app.py",
+          files: {
+            "app.py": { url: "./app.py" },
+            "panel.py": { url: "./panel.py" },
+            "data/spectra.csv": { url: "./data/spectra.csv" },
+          },
+          streamlitConfig: { "client.toolbarMode": "viewer" },
+        },
+        document.getElementById("root"),
+      );
+    </script>
+  </body>
+</html>
