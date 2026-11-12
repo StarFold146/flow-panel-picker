@@ -52,6 +52,18 @@ VIABILITY = {"7-AAD", "DAPI", "Hoechst 33342", "PI", "LIVE/DEAD Fixable Aqua", "
 PROTEINS = {"GFP (EGFP)", "mCherry", "tdTomato", "CFSE", "CellTrace Violet", "CellTrace Far Red",
             "CellTrace Yellow", "CPD eFluor 450", "CPD eFluor 670"}
 
+# Viability dyes that survive fixation (needed for intracellular staining such as FOXP3)
+FIXABLE = {d for d in VIABILITY if d.startswith(("Zombie", "LIVE/DEAD Fixable", "FVD"))}
+
+# Dyes most vendors (BioLegend, Thermo, BD) sell on most clones at ordinary prices.
+# BD-only dyes (BUV, BB, RealBlue, V450/V500) and rarer ones are left out of suggestions by default.
+COMMON = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Texas Red",
+          "PE-eFluor 610", "PE-Cy5", "PE-Cy5.5", "PE-Cy7", "PerCP", "PerCP-Cy5.5",
+          "PerCP-eFluor 710", "APC", "Alexa Fluor 647", "Alexa Fluor 700", "APC-Cy7",
+          "APC-Fire 750", "APC-eFluor 780", "APC-H7", "eFluor 660", "Pacific Blue",
+          "eFluor 450", "eFluor 506", "BV421", "BV510", "BV570", "BV605", "BV650", "BV711",
+          "BV785", "Super Bright 600", "Super Bright 645", "Super Bright 702"} | FIXABLE
+
 # Importance level -> lowest brightness worth suggesting
 LEVELS = {"high": 4, "medium": 3, "low": 1}
 
@@ -65,7 +77,7 @@ def is_viability_marker(name):
     return any(w in n for w in ("live", "dead", "viab", "zombie", "dapi", "7-aad"))
 
 
-def suggest_pool(marker, level, fixed, sim, n=12):
+def suggest_pool(marker, level, fixed, sim, n=20, common_only=True):
     """Dyes worth trying for a marker the user has no antibody for yet.
 
     fixed: dyes that are certain to be in the panel (markers with a single option).
@@ -73,8 +85,10 @@ def suggest_pool(marker, level, fixed, sim, n=12):
     leaving the bright dyes for the markers that need them.
     """
     dyes = list(sim.index)
+    if common_only and len([d for d in dyes if d in COMMON]) >= 10:
+        dyes = [d for d in dyes if d in COMMON]
     if is_viability_marker(marker):
-        pool = [d for d in dyes if d in VIABILITY]
+        pool = [d for d in dyes if d in FIXABLE] or [d for d in dyes if d in VIABILITY]
     else:
         pool = [d for d in dyes if d not in VIABILITY and d not in PROTEINS]
     bright = [d for d in pool if brightness(d) >= LEVELS[level]]
@@ -235,3 +249,103 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
     search(0, [], 0.0, 0.0)
     results = sorted([(k, a, p) for _, _, k, a, p in best], key=lambda r: rank(r[0], r[1]))
     return results, stopped
+
+
+def panel_score(panel, key_markers, s, pos):
+    """(key_max, all_max) of a {marker: dye} panel, using the plain similarity array."""
+    items = list(panel.items())
+    key_max = all_max = 0.0
+    for (m1, d1), (m2, d2) in itertools.combinations(items, 2):
+        v = s[pos[d1], pos[d2]]
+        all_max = max(all_max, v)
+        if m1 in key_markers or m2 in key_markers:
+            key_max = max(key_max, v)
+    return key_max, all_max
+
+
+def local_panels(options, key_markers, sim, restarts=40, seed=0):
+    """For many markers with many choices, where trying every combination is too slow.
+
+    Each round builds a panel greedily (key markers first, in a shuffled order, picking
+    among the best few dyes at random), then keeps changing one marker's dye, or swapping
+    the dyes of two markers, while that makes the panel better. Different rounds end in
+    different panels. Returns the same shape as find_panels.
+    """
+    rng = np.random.default_rng(seed)
+    names = list(sim.index)
+    pos = {d: i for i, d in enumerate(names)}
+    s = sim.to_numpy()
+    found = {}
+    for _ in range(restarts):
+        markers = list(options)
+        rng.shuffle(markers)
+        markers.sort(key=lambda m: (m not in key_markers, len(options[m])))
+        panel = {}
+        for m in markers:
+            used = set(panel.values())
+            tries = []
+            for d in options[m]:
+                if d in used:
+                    continue
+                k, a = panel_score({**panel, m: d}, key_markers, s, pos)
+                tries.append((rank(k, a), d))
+            if not tries:
+                break
+            tries.sort()
+            panel[m] = tries[min(int(rng.integers(0, 3)), len(tries) - 1)][1]
+        if len(panel) < len(options):
+            continue
+        best = rank(*panel_score(panel, key_markers, s, pos))
+        better = True
+        while better:
+            better = False
+            for m in options:
+                used = set(panel.values())
+                for d in options[m]:
+                    if d in used:
+                        continue
+                    r = rank(*panel_score({**panel, m: d}, key_markers, s, pos))
+                    if r < best:
+                        panel, best, better = {**panel, m: d}, r, True
+                        used = set(panel.values())
+            for m1, m2 in itertools.combinations(options, 2):
+                d1, d2 = panel[m1], panel[m2]
+                if d2 in options[m1] and d1 in options[m2]:
+                    r = rank(*panel_score({**panel, m1: d2, m2: d1}, key_markers, s, pos))
+                    if r < best:
+                        panel, best, better = {**panel, m1: d2, m2: d1}, r, True
+        found[tuple(sorted(panel.items()))] = panel
+    results = [(*panel_score(p, key_markers, s, pos), p) for p in found.values()]
+    results.sort(key=lambda r: rank(r[0], r[1]))
+    return results
+
+
+def diverse(results, n=10, min_diff=2):
+    """Keep up to n panels that each differ from the ones already kept in at least min_diff markers."""
+    kept = []
+    for r in results:
+        if all(sum(r[2][m] != k[2][m] for m in r[2]) >= min_diff for k in kept):
+            kept.append(r)
+        if len(kept) == n:
+            break
+    return kept
+
+
+def alternatives(panel, options, sim, n=3):
+    """For each marker, other dyes from its options that would fit the rest of the panel.
+
+    Returns {marker: [(dye, most similar to the rest), ...]}, best first, only dyes that
+    stay below the 'be careful' band.
+    """
+    out = {}
+    for m, dye in panel.items():
+        rest = [d for k, d in panel.items() if k != m]
+        alts = []
+        for d in options.get(m, []):
+            if d == dye or d in rest:
+                continue
+            worst = max(sim.loc[d, rest]) if rest else 0.0
+            if worst < CAREFUL:
+                alts.append((d, float(worst)))
+        out[m] = sorted(alts, key=lambda a: a[1])[:n]
+    return out

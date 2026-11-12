@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from panel import (CAREFUL, LEVELS, TOO_CLOSE, brightness, rank, complexity_index, find_panels,
+from panel import (CAREFUL, LEVELS, TOO_CLOSE, alternatives, brightness, diverse, local_panels, rank, complexity_index, find_panels,
                    signatures_from_spectra, similarity_matrix, suggest_pool, worst_pairs)
 
 st.set_page_config(page_title="Spectral Panel Picker", layout="wide")
@@ -94,6 +94,10 @@ else:
                     "will differ from the instrument.")
 sim = similarity_matrix(sig)
 all_dyes = sorted(sig.index)
+common_only = st.sidebar.toggle(
+    "Suggest common dyes only", value=True,
+    help="On: suggestions use dyes most vendors sell on most clones (no BD-only BUV/BB, "
+         "no rarer dyes). Off: suggest from every dye in the list.")
 
 st.sidebar.markdown("""
 **Colour guide**
@@ -143,18 +147,25 @@ with tab_pick:
     suggested = set()
     for name, dyes, level in rows:
         if not dyes:
-            options[name] = suggest_pool(name, level, fixed, sim)
+            options[name] = suggest_pool(name, level, fixed, sim, common_only=common_only)
             suggested.add(name)
 
     if st.button("Find panels", type="primary"):
         if len(options) < 2:
             st.warning("Add at least two markers.")
         else:
+            combos = float(np.prod([len(v) for v in options.values()], dtype=float))
             with st.spinner("Searching..."):
-                results, stopped = find_panels(options, key_markers, sim, top=20,
-                                               max_steps=300_000 if suggested else 2_000_000)
-            if stopped:
-                st.info("Too many combinations, stopped early. The results are good but may not be the best.")
+                if combos <= 5e6:
+                    results, stopped = find_panels(options, key_markers, sim, top=200)
+                    if stopped:
+                        results += local_panels(options, key_markers, sim)
+                else:
+                    # far too many to try one by one: build and improve panels instead
+                    results = local_panels(options, key_markers, sim)
+                results.sort(key=lambda r: rank(r[0], r[1]))
+                # panels that differ only in one or two low-priority markers are not real options
+                results = diverse(results, n=10, min_diff=max(1, round(len(options) / 4)))
             if not results:
                 st.error("No panel found. Two markers may only have the same dye.")
             else:
@@ -174,6 +185,7 @@ with tab_pick:
                 st.session_state["results"] = table
                 st.session_state["suggested"] = suggested
                 st.session_state["levels"] = {name: level for name, _, level in rows}
+                st.session_state["options"] = options
 
     if "results" in st.session_state:
         table = st.session_state["results"]
@@ -188,15 +200,18 @@ with tab_pick:
         fluors = [row[m] for m in markers]
         labels = [f"{m} ({row[m]})" for m in markers]
         to_buy = [m for m in markers if m in st.session_state.get("suggested", set())]
+        alts = alternatives({m: row[m] for m in markers}, st.session_state.get("options", {}), sim)
         if to_buy:
             st.write("**To buy** for this panel (suggested colours)")
             levels = st.session_state.get("levels", {})
             buy = pd.DataFrame([{"marker": m, "dye": row[m], "importance": levels.get(m, ""),
-                                 "brightness (1-5)": brightness(row[m])} for m in to_buy])
+                                 "brightness (1-5)": brightness(row[m]),
+                                 "also fits": ", ".join(d for d, _ in alts.get(m, []))} for m in to_buy])
             st.dataframe(buy, hide_index=True)
             st.download_button("Download shopping list", buy.to_csv(index=False).encode(),
                                "to_buy.csv", key="buy")
-            st.caption("Check the vendor actually sells your clone in that colour. "
+            st.caption("Check the vendor actually sells your clone in that colour; if not, try one "
+                       "from 'also fits' (each keeps every pair below 0.90 with the rest of this panel). "
                        "Brightness is a rough guide from vendor charts.")
         show_panel(fluors, labels, sig, sim)
 

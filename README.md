@@ -35,7 +35,12 @@ streamlit run app.py
   Each marker has an importance level: **high** (key or dim marker) gets bright, clean dyes;
   **medium** gets moderately bright ones; **low** (bright marker) is happy with a dim dye, which
   leaves the bright ones for the markers that need them. Live/dead markers get viability dyes.
-  The chosen panel comes with a shopping list. Brightness is a rough 1–5 guide from vendor charts;
+  By default suggestions only use common dyes that most vendors sell (no BD-only BUV/BB dyes, no rarer
+  dyes; switch this off in the sidebar), and live/dead markers get fixable dyes so intracellular
+  staining still works. With many markers the app builds panels and improves them one marker at a
+  time instead of trying every combination, and shows panels that differ in at least a quarter of
+  their markers. The chosen panel comes with a shopping list, with other dyes that would also fit
+  each marker in case your clone is not sold in the suggested colour. Brightness is a rough 1–5 guide from vendor charts;
   check that your clone is sold in that colour.
 - **Check a panel**: pick the dyes of an existing panel and see the similarity matrix,
   the most similar pairs and the signatures.
