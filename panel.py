@@ -197,11 +197,14 @@ def rank(key_max, all_max):
 
     1. the band of the most similar pair in the whole panel: no pair should be too close
     2. the band of the most similar pair that involves a key marker
-    3. the key pairs in steps of 0.05, so tiny gains there never cost the rest of the panel
-    4. the most similar pair in the whole panel
+    3. a balance of the two, in steps of 0.05: key pairs count fully, other pairs are
+       given 0.15 of slack, so cleaner key markers win unless the rest of the panel
+       gets clearly worse for it
+    4. the most similar pair in the whole panel, then the key pairs
     Every part only grows as dyes are added, so the search can cut branches with it.
     """
-    return (band(all_max), band(key_max), int(np.ceil(key_max / 0.05 - 1e-9)), all_max, key_max)
+    balance = max(key_max, all_max - 0.15)
+    return (band(all_max), band(key_max), int(np.ceil(balance / 0.05 - 1e-9)), all_max, key_max)
 
 
 def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):

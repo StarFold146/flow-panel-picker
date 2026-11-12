@@ -28,7 +28,8 @@ streamlit run app.py
   1. how close the most similar pair in the whole panel is (below 0.90, 0.90–0.98, above 0.98),
      so a panel with a pair that cannot be unmixed never comes first,
   2. the same band for pairs that involve a high-importance marker,
-  3. how clean the high-importance pairs are, in steps of 0.05,
+  3. a balance of the two in steps of 0.05: high-importance pairs count fully, other pairs get
+     0.15 of slack, so cleaner key markers win unless the rest of the panel gets clearly worse,
   4. the most similar pair in the whole panel, then the complexity index.
   When you look at a panel it says which pairs are too close (above 0.98) or need care (0.90–0.98).
 - **Suggest colours to buy**: leave a marker's dyes empty and the app suggests one.
