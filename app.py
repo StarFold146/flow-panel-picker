@@ -102,7 +102,7 @@ with tab_pick:
         2: ("CD25", ["BV421", "PE", "APC", "BB515"], True),
         3: ("FOXP3", ["PE", "APC", "Alexa Fluor 488", "eFluor 450"], True),
         4: ("Helios", ["PE-Cy7", "Alexa Fluor 647", "FITC"], False),
-        5: ("Live/Dead", ["Zombie NIR", "Zombie Aqua", "LIVE/DEAD Blue"], False),
+        5: ("Live/Dead", ["Zombie NIR", "Zombie Aqua", "LIVE/DEAD Fixable Blue"], False),
     }
 
     rows = []

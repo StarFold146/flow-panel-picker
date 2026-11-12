@@ -44,7 +44,7 @@ The complexity index is the condition number of the signature matrix (lower is e
 ## Where the signatures come from
 
 By default the signatures are **simulated**, not measured. Excitation and emission spectra of
-70 common dyes were downloaded from [FPbase](https://www.fpbase.org) (`fetch_spectra.py`).
+120 dyes (common antibody conjugates including the cheaper Alexa Fluor, eFluor, DyLight and Cy dyes, viability dyes and cell tracking dyes) were downloaded from [FPbase](https://www.fpbase.org) (`fetch_spectra.py`).
 For each S8 laser (349, 405, 488, 561, 637 nm) the excitation at the laser line is multiplied by
 the emission collected in 20 nm bins up to 850 nm.
 

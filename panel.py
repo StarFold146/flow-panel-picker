@@ -29,13 +29,28 @@ BRIGHTNESS = {
     "APC-H7": 2, "APC-eFluor 780": 2, "BUV805": 2, "BV510": 2, "BV570": 2,
     "FITC": 2, "PerCP-Cy5.5": 2, "V450": 2, "eFluor 450": 2, "Super Bright 780": 2,
     "PerCP": 1, "Pacific Blue": 1, "V500": 1, "Alexa Fluor 700": 1,
+    "Kiravia Blue 520": 4, "PE-Alexa Fluor 610": 4,
+    "Alexa Fluor 532": 3, "Alexa Fluor 546": 3, "Alexa Fluor 555": 3, "Alexa Fluor 568": 3,
+    "Alexa Fluor 594": 3, "APC-Alexa Fluor 750": 3, "eFluor 570": 3, "eFluor 615": 3,
+    "DyLight 488": 3, "DyLight 550": 3, "DyLight 650": 3, "Cy3": 3, "Cy5": 3,
+    "iFluor 488": 3, "iFluor 647": 3,
+    "Alexa Fluor 680": 2, "Alexa Fluor 750": 2, "Pacific Green": 2, "eFluor 710": 2,
+    "DyLight 680": 2, "DyLight 755": 2, "Cy5.5": 2,
+    "Alexa Fluor 405": 1, "Alexa Fluor 430": 1, "Pacific Orange": 1, "eFluor 506": 1,
+    "DyLight 405": 1, "Cy7": 1,
 }
 
 # Dyes that stain dead cells or DNA, and fluorescent proteins: never suggested for an antibody.
-VIABILITY = {"7-AAD", "DAPI", "Hoechst 33342", "PI", "LIVE/DEAD Aqua", "LIVE/DEAD Blue",
-             "LIVE/DEAD Near-IR", "FVD eFluor 780", "Zombie Aqua", "Zombie Green",
+VIABILITY = {"7-AAD", "DAPI", "Hoechst 33342", "PI", "LIVE/DEAD Fixable Aqua", "LIVE/DEAD Fixable Blue",
+             "LIVE/DEAD Fixable Near-IR", "LIVE/DEAD Fixable Violet", "LIVE/DEAD Fixable Green",
+             "LIVE/DEAD Fixable Yellow", "LIVE/DEAD Fixable Red", "LIVE/DEAD Fixable Far Red",
+             "FVD eFluor 450", "FVD eFluor 455UV", "FVD eFluor 506", "FVD eFluor 520",
+             "FVD eFluor 660", "FVD eFluor 780", "SYTOX Blue", "SYTOX Green", "SYTOX Red",
+             "SYTOX AADvanced", "Zombie Aqua", "Zombie Green",
              "Zombie NIR", "Zombie Red", "Zombie UV", "Zombie Violet", "Zombie Yellow"}
-PROTEINS = {"GFP (EGFP)", "mCherry", "tdTomato"}
+# Fluorescent proteins and cell tracking dyes: also not antibody colours.
+PROTEINS = {"GFP (EGFP)", "mCherry", "tdTomato", "CFSE", "CellTrace Violet", "CellTrace Far Red",
+            "CellTrace Yellow", "CPD eFluor 450", "CPD eFluor 670"}
 
 # Importance level -> lowest brightness worth suggesting
 LEVELS = {"high": 4, "medium": 3, "low": 1}
