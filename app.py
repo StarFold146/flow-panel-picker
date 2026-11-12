@@ -117,7 +117,41 @@ st.write("Tell it which dyes you have for each marker. It picks one dye per mark
 tab_pick, tab_check = st.tabs(["Pick a panel", "Check a panel"])
 
 with tab_pick:
-    n = st.number_input("Number of markers", min_value=2, max_value=40, value=6)
+    ss = st.session_state
+    listing = st.file_uploader(
+        "Optional: load a marker list (.csv)", type="csv", key="listing",
+        help="Columns: marker, dyes, importance. Dyes separated by ';' (leave empty to get a "
+             "suggestion), importance high / medium / low. 'Download this list' below saves one.")
+    if listing is not None and ss.get("listing_id") != listing.file_id:
+        table0 = pd.read_csv(listing, dtype=str).fillna("")
+        table0.columns = [c.strip().lower() for c in table0.columns]
+        unknown = []
+        for i, r in enumerate(table0.to_dict("records")):
+            dyes = []
+            for d in r.get("dyes", "").split(";"):
+                if d.strip():
+                    found = resolve(d.strip(), all_dyes)
+                    if found and found not in dyes:
+                        dyes.append(found)
+                    elif not found:
+                        unknown.append(d.strip())
+            ss[f"name{i}"] = r.get("marker", "").strip()
+            ss[f"dyes{i}"] = dyes
+            level = r.get("importance", "").strip().lower()
+            ss[f"level{i}"] = level if level in LEVELS else "medium"
+        ss["n"] = max(2, len(table0))
+        ss["listing_id"] = listing.file_id
+        ss["listing_note"] = (f"Loaded {len(table0)} markers." +
+                              (f" Not in the dye list, skipped: {', '.join(unknown)}" if unknown else ""))
+    if ss.get("listing_note"):
+        st.caption(ss["listing_note"])
+
+    # a widget gets its starting value only the first time; after that (or after loading a list)
+    # its value lives in session state
+    def first(key, **start):
+        return {} if key in ss else start
+
+    n = st.number_input("Number of markers", min_value=2, max_value=40, key="n", **first("n", value=6))
 
     example = {
         0: ("CD4", ["BUV737", "BV605", "PE-Cy7"], False),
@@ -132,16 +166,21 @@ with tab_pick:
     for i in range(int(n)):
         name0, dyes0, key0 = example.get(i, (f"Marker {i + 1}", [], False))
         c1, c2, c3 = st.columns([1.2, 4, 0.9])
-        name = c1.text_input("Marker", value=name0, key=f"name{i}", label_visibility="collapsed")
-        dyes = c2.multiselect("Dyes", all_dyes, default=[r for r in (resolve(d, all_dyes) for d in dyes0) if r],
-                              key=f"dyes{i}", label_visibility="collapsed",
+        name = c1.text_input("Marker", key=f"name{i}", label_visibility="collapsed",
+                             **first(f"name{i}", value=name0))
+        dyes = c2.multiselect("Dyes", all_dyes, key=f"dyes{i}", label_visibility="collapsed",
+                              **first(f"dyes{i}", default=[r for r in (resolve(d, all_dyes) for d in dyes0) if r]),
                               placeholder="dyes you have (empty = suggest one to buy)")
-        level = c3.selectbox("Importance", list(LEVELS), index=0 if key0 else 1, key=f"level{i}",
-                             label_visibility="collapsed",
+        level = c3.selectbox("Importance", list(LEVELS), key=f"level{i}", label_visibility="collapsed",
+                             **first(f"level{i}", index=0 if key0 else 1),
                              help="high: key or dim marker, gets bright clean dyes. "
                                   "low: bright marker, happy with a dim dye.")
         if name:
             rows.append((name, dyes, level))
+
+    st.download_button("Download this list", pd.DataFrame(
+        [{"marker": name, "dyes": "; ".join(dyes), "importance": level} for name, dyes, level in rows]
+    ).to_csv(index=False).encode(), "markers.csv", key="save_list")
 
     key_markers = {name for name, _, level in rows if level == "high"}
     options = {name: dyes for name, dyes, _ in rows if dyes}

@@ -45,6 +45,9 @@ streamlit run app.py
   their markers. The chosen panel comes with a shopping list, with other dyes that would also fit
   each marker in case your clone is not sold in the suggested colour. Brightness is a rough 1–5 guide from vendor charts;
   check that your clone is sold in that colour.
+- **Load / save a marker list**: a CSV with columns `marker`, `dyes` (separated by `;`, empty = suggest)
+  and `importance` (high / medium / low) fills in every row at once; *Download this list* saves the
+  current rows in the same format. Handy for keeping the colours you know your vendors sell.
 - **Check a panel**: pick the dyes of an existing panel and see the similarity matrix,
   the most similar pairs and the signatures.
 
