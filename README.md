@@ -5,7 +5,7 @@ A small Streamlit app for choosing fluorochromes on a spectral flow cytometer
 
 You list the dyes you have for each marker. The app picks one dye per marker so that
 the most similar pair of dyes in the panel is as different as possible. Markers ticked
-as **key** are placed first: the app keeps their dyes far away from everything else.
+as **high** importance are placed first: the app keeps their dyes far away from everything else.
 
 ## Use it online
 
@@ -23,11 +23,17 @@ streamlit run app.py
 
 ## What it does
 
-- **Pick a panel**: for every marker, choose the dyes you have and tick the key markers.
+- **Pick a panel**: for every marker, choose the dyes you have and set its importance (high = key).
   The app searches all combinations (one dye per marker, no dye used twice) and ranks them by
   1. the highest similarity among pairs that involve a key marker,
   2. the highest similarity in the whole panel,
   3. the complexity index.
+- **Suggest colours to buy**: leave a marker's dyes empty and the app suggests one.
+  Each marker has an importance level: **high** (key or dim marker) gets bright, clean dyes;
+  **medium** gets moderately bright ones; **low** (bright marker) is happy with a dim dye, which
+  leaves the bright ones for the markers that need them. Live/dead markers get viability dyes.
+  The chosen panel comes with a shopping list. Brightness is a rough 1–5 guide from vendor charts;
+  check that your clone is sold in that colour.
 - **Check a panel**: pick the dyes of an existing panel and see the similarity matrix,
   the most similar pairs and the signatures.
 
@@ -51,7 +57,7 @@ per detector) and upload the CSV in the sidebar. The app will use your data inst
 
 ## Not included yet
 
-- Matching bright dyes to dim antigens (antigen density)
+- Real antigen density (brightness matching uses the importance level only)
 - Spillover spreading from real data
 - Tandem dye degradation
 

@@ -13,6 +13,68 @@ BIN_WIDTH = 20
 LAST_NM = 850
 
 
+# Rough relative brightness of each dye on antibodies, 1 (dim) to 5 (brightest).
+# Taken loosely from vendor brightness charts; real brightness depends on the clone,
+# the antigen and the instrument, so use it for ranking only.
+BRIGHTNESS = {
+    "PE": 5, "BV421": 5, "PE-Cy5": 5, "APC": 4, "BB515": 4, "BB700": 4,
+    "BUV395": 4, "BUV563": 4, "BUV661": 4, "BUV737": 4, "RealBlue 670": 4,
+    "BV605": 4, "BV650": 4, "BV711": 4, "PE-CF594": 4, "PE-Dazzle 594": 4,
+    "PE-eFluor 610": 4, "PE-Cy7": 4, "PE-Fire 780": 4,
+    "Super Bright 436": 4, "Super Bright 600": 4, "Super Bright 645": 4,
+    "Alexa Fluor 647": 3, "Alexa Fluor 488": 3, "APC-Cy7": 3, "APC-Fire 750": 3,
+    "BUV496": 3, "BV480": 3, "BV750": 3, "BV785": 3, "PE-Cy5.5": 3,
+    "PE-Texas Red": 3, "PE-Alexa Fluor 700": 3, "PerCP-eFluor 710": 3,
+    "Spark Blue 550": 3, "Spark Violet 538": 3, "Super Bright 702": 3, "eFluor 660": 3,
+    "APC-H7": 2, "APC-eFluor 780": 2, "BUV805": 2, "BV510": 2, "BV570": 2,
+    "FITC": 2, "PerCP-Cy5.5": 2, "V450": 2, "eFluor 450": 2, "Super Bright 780": 2,
+    "PerCP": 1, "Pacific Blue": 1, "V500": 1, "Alexa Fluor 700": 1,
+}
+
+# Dyes that stain dead cells or DNA, and fluorescent proteins: never suggested for an antibody.
+VIABILITY = {"7-AAD", "DAPI", "Hoechst 33342", "PI", "LIVE/DEAD Aqua", "LIVE/DEAD Blue",
+             "LIVE/DEAD Near-IR", "FVD eFluor 780", "Zombie Aqua", "Zombie Green",
+             "Zombie NIR", "Zombie Red", "Zombie UV", "Zombie Violet", "Zombie Yellow"}
+PROTEINS = {"GFP (EGFP)", "mCherry", "tdTomato"}
+
+# Importance level -> lowest brightness worth suggesting
+LEVELS = {"high": 4, "medium": 3, "low": 1}
+
+
+def brightness(dye):
+    return BRIGHTNESS.get(dye, 3)
+
+
+def is_viability_marker(name):
+    n = name.lower()
+    return any(w in n for w in ("live", "dead", "viab", "zombie", "dapi", "7-aad"))
+
+
+def suggest_pool(marker, level, fixed, sim, n=12):
+    """Dyes worth trying for a marker the user has no antibody for yet.
+
+    fixed: dyes that are certain to be in the panel (markers with a single option).
+    High-level markers get bright dyes; low-level markers prefer dimmer ones,
+    leaving the bright dyes for the markers that need them.
+    """
+    dyes = list(sim.index)
+    if is_viability_marker(marker):
+        pool = [d for d in dyes if d in VIABILITY]
+    else:
+        pool = [d for d in dyes if d not in VIABILITY and d not in PROTEINS]
+    bright = [d for d in pool if brightness(d) >= LEVELS[level]]
+    if len(bright) >= 3:
+        pool = bright
+
+    def score(d):
+        clash = max((sim.loc[d, f] for f in fixed if f != d), default=0.0)
+        tilt = {"high": -0.02, "medium": -0.01, "low": 0.01}[level]
+        return clash + tilt * brightness(d)
+
+    pool = [d for d in pool if d not in fixed]
+    return sorted(pool, key=score)[:n]
+
+
 def make_detectors():
     """List of (detector name, laser, start nm, end nm)."""
     detectors = []
@@ -84,6 +146,10 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
     """
     # key markers first, then markers with fewer choices; this makes the search faster
     order = sorted(options, key=lambda m: (m not in key_markers, len(options[m])))
+    # plain arrays: much faster than sim.loc, which matters when running in the browser
+    names = list(sim.index)
+    pos = {d: i for i, d in enumerate(names)}
+    s = sim.to_numpy()
     best = []            # heap of (-key_max, -all_max, counter, panel)
     counter = itertools.count()
     steps = 0
@@ -115,15 +181,19 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
             return
         marker = order[i]
         used = {d for _, d in chosen}
+        tries = []
         for dye in options[marker]:
             if dye in used:
                 continue
             new_key, new_all = key_max, all_max
             for other_marker, other_dye in chosen:
-                s = sim.loc[dye, other_dye]
-                new_all = max(new_all, s)
+                v = s[pos[dye], pos[other_dye]]
+                new_all = max(new_all, v)
                 if marker in key_markers or other_marker in key_markers:
-                    new_key = max(new_key, s)
+                    new_key = max(new_key, v)
+            tries.append((new_key, new_all, dye))
+        # most promising dye first, so good panels are found early and the rest is cut off
+        for new_key, new_all, dye in sorted(tries, key=lambda t: (t[0], t[1])):
             chosen.append((marker, dye))
             search(i + 1, chosen, new_key, new_all)
             chosen.pop()

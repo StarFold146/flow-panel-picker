@@ -3,8 +3,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from panel import (complexity_index, find_panels, signatures_from_spectra,
-                   similarity_matrix, worst_pairs)
+from panel import (LEVELS, brightness, complexity_index, find_panels,
+                   signatures_from_spectra, similarity_matrix, suggest_pool, worst_pairs)
 
 st.set_page_config(page_title="Spectral Panel Picker", layout="wide")
 
@@ -88,7 +88,8 @@ st.sidebar.markdown("""
 st.title("Spectral Panel Picker")
 st.write("Tell it which dyes you have for each marker. It picks one dye per marker so that "
          "the most similar pair in the panel is as different as possible. "
-         "Tick **key** for the markers that matter most: they get the cleanest dyes first.")
+         "Set markers that matter most (or are dim) to **high**: they get the cleanest and brightest dyes first. "
+         "Leave a marker's dyes empty and it will suggest a colour to buy.")
 
 tab_pick, tab_check = st.tabs(["Pick a panel", "Check a panel"])
 
@@ -104,28 +105,37 @@ with tab_pick:
         5: ("Live/Dead", ["Zombie NIR", "Zombie Aqua", "LIVE/DEAD Blue"], False),
     }
 
-    options, key_markers = {}, set()
+    rows = []
     for i in range(int(n)):
         name0, dyes0, key0 = example.get(i, (f"Marker {i + 1}", [], False))
-        c1, c2, c3 = st.columns([1.2, 4, 0.6])
+        c1, c2, c3 = st.columns([1.2, 4, 0.9])
         name = c1.text_input("Marker", value=name0, key=f"name{i}", label_visibility="collapsed")
         dyes = c2.multiselect("Dyes", all_dyes, default=[d for d in dyes0 if d in all_dyes],
                               key=f"dyes{i}", label_visibility="collapsed",
-                              placeholder="dyes you have for this marker")
-        key = c3.checkbox("key", value=key0, key=f"key{i}")
-        if dyes:
-            options[name] = dyes
-            if key:
-                key_markers.add(name)
+                              placeholder="dyes you have (empty = suggest one to buy)")
+        level = c3.selectbox("Importance", list(LEVELS), index=0 if key0 else 1, key=f"level{i}",
+                             label_visibility="collapsed",
+                             help="high: key or dim marker, gets bright clean dyes. "
+                                  "low: bright marker, happy with a dim dye.")
+        if name:
+            rows.append((name, dyes, level))
+
+    key_markers = {name for name, _, level in rows if level == "high"}
+    options = {name: dyes for name, dyes, _ in rows if dyes}
+    fixed = {dyes[0] for dyes in options.values() if len(dyes) == 1}
+    suggested = set()
+    for name, dyes, level in rows:
+        if not dyes:
+            options[name] = suggest_pool(name, level, fixed, sim)
+            suggested.add(name)
 
     if st.button("Find panels", type="primary"):
         if len(options) < 2:
-            st.warning("Give at least two markers some dyes.")
-        elif len(options) < int(n):
-            st.warning("Some markers have no dyes yet.")
+            st.warning("Add at least two markers.")
         else:
             with st.spinner("Searching..."):
-                results, stopped = find_panels(options, key_markers, sim, top=20)
+                results, stopped = find_panels(options, key_markers, sim, top=20,
+                                               max_steps=300_000 if suggested else 2_000_000)
             if stopped:
                 st.info("Too many combinations, stopped early. The results are good but may not be the best.")
             if not results:
@@ -142,6 +152,8 @@ with tab_pick:
                     ["key pairs max", "all pairs max", "complexity"]).head(10).reset_index(drop=True)
                 table.index = table.index + 1
                 st.session_state["results"] = table
+                st.session_state["suggested"] = suggested
+                st.session_state["levels"] = {name: level for name, _, level in rows}
 
     if "results" in st.session_state:
         table = st.session_state["results"]
@@ -155,6 +167,17 @@ with tab_pick:
         row = table.loc[pick]
         fluors = [row[m] for m in markers]
         labels = [f"{m} ({row[m]})" for m in markers]
+        to_buy = [m for m in markers if m in st.session_state.get("suggested", set())]
+        if to_buy:
+            st.write("**To buy** for this panel (suggested colours)")
+            levels = st.session_state.get("levels", {})
+            buy = pd.DataFrame([{"marker": m, "dye": row[m], "importance": levels.get(m, ""),
+                                 "brightness (1-5)": brightness(row[m])} for m in to_buy])
+            st.dataframe(buy, hide_index=True)
+            st.download_button("Download shopping list", buy.to_csv(index=False).encode(),
+                               "to_buy.csv", key="buy")
+            st.caption("Check the vendor actually sells your clone in that colour. "
+                       "Brightness is a rough guide from vendor charts.")
         show_panel(fluors, labels, sig, sim)
 
 with tab_check:
