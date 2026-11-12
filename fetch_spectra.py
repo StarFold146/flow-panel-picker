@@ -105,3 +105,8 @@ for start in range(0, len(wanted), 20):
 
 pd.DataFrame(rows).to_csv("data/spectra.csv", index=False)
 print("saved", len(set(r["fluor"] for r in rows)), "dyes")
+
+# the app loads these precomputed signatures: much smaller than the spectra, so it opens faster
+from panel import signatures_from_spectra
+signatures_from_spectra(pd.DataFrame(rows)).round(5).to_csv("data/signatures.csv")
+print("saved data/signatures.csv")

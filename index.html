@@ -13,12 +13,13 @@
       import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@1.9.2/build/stlite.js";
       mount(
         {
-          requirements: ["plotly", "jinja2"],
+          requirements: ["plotly", "jinja2", "openpyxl"],
           entrypoint: "app.py",
           files: {
             "app.py": { url: "./app.py" },
             "panel.py": { url: "./panel.py" },
-            "data/spectra.csv": { url: "./data/spectra.csv" },
+            "export.py": { url: "./export.py" },
+            "data/signatures.csv": { url: "./data/signatures.csv" },
           },
           streamlitConfig: { "client.toolbarMode": "viewer" },
         },
