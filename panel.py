@@ -1,5 +1,6 @@
 """Spectral signatures, similarity and panel search for spectral flow cytometry."""
 import heapq
+import re
 import itertools
 
 import numpy as np
@@ -62,7 +63,8 @@ COMMON = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Texa
           "PerCP-eFluor 710", "APC", "Alexa Fluor 647", "Alexa Fluor 700", "APC-Cy7",
           "APC-Fire 750", "APC-eFluor 780", "APC-H7", "eFluor 660", "Pacific Blue",
           "eFluor 450", "eFluor 506", "BV421", "BV510", "BV570", "BV605", "BV650", "BV711",
-          "BV785", "Super Bright 600", "Super Bright 645", "Super Bright 702"} | FIXABLE
+          "BV785", "Super Bright 600", "Super Bright 645", "Super Bright 702",
+          "DAPI", "7-AAD", "PI", "SYTOX Blue", "SYTOX AADvanced"} | FIXABLE
 
 # Importance level -> lowest brightness worth suggesting
 LEVELS = {"high": 4, "medium": 3, "low": 1}
@@ -77,10 +79,27 @@ def is_viability_marker(name):
     return any(w in n for w in ("live", "dead", "viab", "zombie", "dapi", "7-aad"))
 
 
-def suggest_pool(marker, level, fixed, sim, n=20, common_only=True):
+# Markers usually stained after fixing and permeabilising (cytoplasm or nucleus)
+INSIDE = ("foxp3", "helios", "ikzf", "ki67", "ki-67", "t-bet", "tbet", "gata3", "gata-3", "ror",
+          "eomes", "bcl6", "bcl-6", "blimp", "tcf1", "tcf-1", "tox", "irf4", "batf", "nfat",
+          "ifn", "il-", "il1", "il2", "il4", "il5", "il6", "il9", "il10", "il13", "il17", "il21",
+          "il22", "tnf", "tgf", "gzm", "granzyme", "perforin", "prf", "ctla", "pstat", "p-stat",
+          "phospho", "caspase", "h2ax")
+
+
+def needs_perm(name):
+    """Guess from the name whether a marker is stained inside the cell."""
+    n = name.lower().replace(" ", "").replace("_", "-")
+    n = re.sub(r"il-?\d+r", "", n)   # IL-7R, IL2RA and other receptors sit on the surface
+    return any(w in n for w in INSIDE)
+
+
+def suggest_pool(marker, level, fixed, sim, n=20, common_only=True, fixable=True):
     """Dyes worth trying for a marker the user has no antibody for yet.
 
     fixed: dyes that are certain to be in the panel (markers with a single option).
+    fixable: the cells will be fixed and permeabilised, so live/dead dyes must survive that;
+    otherwise live/dead markers get the cheaper DNA dyes that only work on unfixed cells.
     High-level markers get bright dyes; low-level markers prefer dimmer ones,
     leaving the bright dyes for the markers that need them.
     """
@@ -88,7 +107,9 @@ def suggest_pool(marker, level, fixed, sim, n=20, common_only=True):
     if common_only and len([d for d in dyes if d in COMMON]) >= 10:
         dyes = [d for d in dyes if d in COMMON]
     if is_viability_marker(marker):
-        pool = [d for d in dyes if d in FIXABLE] or [d for d in dyes if d in VIABILITY]
+        pool = [d for d in dyes if d in VIABILITY]
+        # fixed cells need a fixable dye; unfixed cells can use the cheap DNA dyes (DAPI, 7-AAD, ...)
+        pool = [d for d in pool if (d in FIXABLE) == fixable] or pool
     else:
         pool = [d for d in dyes if d not in VIABILITY and d not in PROTEINS]
     bright = [d for d in pool if brightness(d) >= LEVELS[level]]

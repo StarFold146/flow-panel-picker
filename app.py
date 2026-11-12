@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from panel import (CAREFUL, LEVELS, TOO_CLOSE, alternatives, brightness, diverse, local_panels, rank, complexity_index, find_panels,
+from panel import (CAREFUL, LEVELS, TOO_CLOSE, alternatives, brightness, diverse, local_panels, needs_perm, rank, complexity_index, find_panels,
                    signatures_from_spectra, similarity_matrix, suggest_pool, worst_pairs)
 
 st.set_page_config(page_title="Spectral Panel Picker", layout="wide")
@@ -144,10 +144,19 @@ with tab_pick:
     key_markers = {name for name, _, level in rows if level == "high"}
     options = {name: dyes for name, dyes, _ in rows if dyes}
     fixed = {dyes[0] for dyes in options.values() if len(dyes) == 1}
+    inside = [name for name, _, _ in rows if needs_perm(name)]
+    fixable = st.checkbox(
+        "Fix and permeabilise (intracellular or nuclear staining)", value=bool(inside),
+        key=f"perm{bool(inside)}",
+        help="On: live/dead suggestions are fixable dyes only (Zombie, LIVE/DEAD Fixable, FVD). "
+             "Off: the cheaper DAPI, 7-AAD, PI or SYTOX instead.")
+    if inside:
+        st.caption("Ticked because these look intracellular: " + ", ".join(inside))
     suggested = set()
     for name, dyes, level in rows:
         if not dyes:
-            options[name] = suggest_pool(name, level, fixed, sim, common_only=common_only)
+            options[name] = suggest_pool(name, level, fixed, sim, common_only=common_only,
+                                         fixable=fixable)
             suggested.add(name)
 
     if st.button("Find panels", type="primary"):
