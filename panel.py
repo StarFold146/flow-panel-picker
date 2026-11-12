@@ -78,6 +78,56 @@ CLASSIC = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Cy5
 # Which dyes suggestions may use
 TIERS = {"classic": CLASSIC, "common": COMMON, "all": None}
 
+# Dyes that are the same colour under different vendors' names (signatures within ~0.90).
+# The built-in list shows each group as one dye, so you can buy whichever vendor has your clone.
+GROUPS = {
+    "PE-CF594 / PE-Dazzle 594 / PE-eFluor 610": ["PE-CF594", "PE-Dazzle 594", "PE-eFluor 610", "PE-Texas Red"],
+    "APC-Cy7 / APC-H7 / APC-Fire 750 / APC-eFluor 780": ["APC-Cy7", "APC-H7", "APC-Fire 750", "APC-eFluor 780"],
+    "PerCP-Cy5.5 / PerCP-eFluor 710": ["PerCP-Cy5.5", "PerCP-eFluor 710"],
+    "FITC / Alexa Fluor 488": ["FITC", "Alexa Fluor 488"],
+    "APC / Alexa Fluor 647 / eFluor 660": ["APC", "Alexa Fluor 647", "eFluor 660"],
+    "Pacific Blue / eFluor 450 / V450": ["Pacific Blue", "eFluor 450", "V450"],
+    "BV421 / Super Bright 436": ["BV421", "Super Bright 436"],
+    "BV510 / V500": ["BV510", "V500"],
+    "BV605 / Super Bright 600": ["BV605", "Super Bright 600"],
+    "BV650 / Super Bright 645": ["BV650", "Super Bright 645"],
+    "BV785 / Super Bright 780": ["BV785", "Super Bright 780"],
+    "Zombie Aqua / LIVE/DEAD Fixable Aqua": ["Zombie Aqua", "LIVE/DEAD Fixable Aqua"],
+    "Zombie UV / LIVE/DEAD Fixable Blue / FVD eFluor 455UV": ["Zombie UV", "LIVE/DEAD Fixable Blue", "FVD eFluor 455UV"],
+    "Zombie Green / LIVE/DEAD Fixable Green / FVD eFluor 520": ["Zombie Green", "LIVE/DEAD Fixable Green", "FVD eFluor 520"],
+    "Zombie Yellow / LIVE/DEAD Fixable Yellow": ["Zombie Yellow", "LIVE/DEAD Fixable Yellow"],
+    "Zombie Red / LIVE/DEAD Fixable Red": ["Zombie Red", "LIVE/DEAD Fixable Red"],
+}
+GROUP_OF = {m: g for g, ms in GROUPS.items() for m in ms}
+
+# a group belongs to a set (viability, a tier ...) when one of its dyes does
+for _set in (VIABILITY, PROTEINS, FIXABLE, CLASSIC, COMMON):
+    _set.update(g for g, ms in GROUPS.items() if _set & set(ms))
+for g, ms in GROUPS.items():
+    BRIGHTNESS[g] = max(BRIGHTNESS.get(m, 3) for m in ms)
+
+
+def merge_groups(signatures):
+    """One row per group of same-colour dyes: the mean of its members' signatures."""
+    sig = signatures.copy()
+    for g, ms in GROUPS.items():
+        present = [m for m in ms if m in sig.index]
+        if not present:
+            continue
+        row = sig.loc[present].mean()
+        sig = sig.drop(present)
+        sig.loc[g] = row / row.max()
+    return sig
+
+
+def resolve(dye, names):
+    """The name a dye goes by in this list (its group's name if it was merged)."""
+    if dye in names:
+        return dye
+    g = GROUP_OF.get(dye)
+    return g if g in names else None
+
+
 # Importance level -> lowest brightness worth suggesting
 LEVELS = {"high": 4, "medium": 3, "low": 1}
 

@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from panel import (CAREFUL, LEVELS, TOO_CLOSE, alternatives, brightness, diverse, local_panels, needs_perm, rank, complexity_index, find_panels,
+from panel import (merge_groups, resolve, CAREFUL, LEVELS, TOO_CLOSE, alternatives, brightness, diverse, local_panels, needs_perm, rank, complexity_index, find_panels,
                    signatures_from_spectra, similarity_matrix, suggest_pool, worst_pairs)
 
 st.set_page_config(page_title="Spectral Panel Picker", layout="wide")
@@ -12,7 +12,7 @@ st.set_page_config(page_title="Spectral Panel Picker", layout="wide")
 @st.cache_data
 def load_builtin():
     spectra = pd.read_csv("data/spectra.csv")
-    return signatures_from_spectra(spectra)
+    return merge_groups(signatures_from_spectra(spectra))
 
 
 @st.cache_data
@@ -133,7 +133,7 @@ with tab_pick:
         name0, dyes0, key0 = example.get(i, (f"Marker {i + 1}", [], False))
         c1, c2, c3 = st.columns([1.2, 4, 0.9])
         name = c1.text_input("Marker", value=name0, key=f"name{i}", label_visibility="collapsed")
-        dyes = c2.multiselect("Dyes", all_dyes, default=[d for d in dyes0 if d in all_dyes],
+        dyes = c2.multiselect("Dyes", all_dyes, default=[r for r in (resolve(d, all_dyes) for d in dyes0) if r],
                               key=f"dyes{i}", label_visibility="collapsed",
                               placeholder="dyes you have (empty = suggest one to buy)")
         level = c3.selectbox("Importance", list(LEVELS), index=0 if key0 else 1, key=f"level{i}",
@@ -229,6 +229,6 @@ with tab_pick:
 with tab_check:
     st.write("Already have a panel? Pick its dyes to see which pairs are too close.")
     chosen = st.multiselect("Dyes in your panel", all_dyes,
-                            default=["DAPI", "GFP (EGFP)", "PE", "APC"])
+                            default=[resolve(d, all_dyes) for d in ["DAPI", "GFP (EGFP)", "PE", "APC"]])
     if len(chosen) >= 2:
         show_panel(chosen, chosen, sig, sim)

@@ -66,6 +66,10 @@ and some pairs (for example APC vs Alexa Fluor 647) come out less similar than o
 If you have single-stain reference controls, export the signatures (one row per dye, one column
 per detector) and upload the CSV in the sidebar. The app will use your data instead.
 
+Dyes that are the same colour under different vendors' names are shown as one entry, for
+example `PE-CF594 / PE-Dazzle 594 / PE-eFluor 610` or `APC-Cy7 / APC-H7 / APC-Fire 750 / APC-eFluor 780`
+(only where the signatures are about 0.90 similar or more), so you can buy whichever vendor sells your clone.
+
 ## Not included yet
 
 - Real antigen density (brightness matching uses the importance level only)
