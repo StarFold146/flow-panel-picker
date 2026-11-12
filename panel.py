@@ -63,7 +63,7 @@ COMMON = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Texa
           "PE-eFluor 610", "PE-Cy5", "PE-Cy5.5", "PE-Cy7", "PerCP", "PerCP-Cy5.5",
           "PerCP-eFluor 710", "APC", "Alexa Fluor 647", "Alexa Fluor 700", "APC-Cy7",
           "APC-Fire 750", "APC-eFluor 780", "APC-H7", "eFluor 660", "Pacific Blue",
-          "eFluor 450", "eFluor 506", "BV421", "BV510", "BV570", "BV605", "BV650", "BV711",
+          "eFluor 450", "BV421", "BV510", "BV570", "BV605", "BV650", "BV711",
           "BV785", "DAPI", "7-AAD", "PI", "SYTOX Blue", "SYTOX AADvanced"} | FIXABLE
 
 # Importance level -> lowest brightness worth suggesting
