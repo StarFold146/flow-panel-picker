@@ -25,9 +25,12 @@ streamlit run app.py
 
 - **Pick a panel**: for every marker, choose the dyes you have and set its importance (high = key).
   The app searches all combinations (one dye per marker, no dye used twice) and ranks them by
-  1. the highest similarity among pairs that involve a key marker,
-  2. the highest similarity in the whole panel,
-  3. the complexity index.
+  1. how close the most similar pair in the whole panel is (below 0.90, 0.90–0.98, above 0.98),
+     so a panel with a pair that cannot be unmixed never comes first,
+  2. the same band for pairs that involve a high-importance marker,
+  3. how clean the high-importance pairs are, in steps of 0.05,
+  4. the most similar pair in the whole panel, then the complexity index.
+  When you look at a panel it says which pairs are too close (above 0.98) or need care (0.90–0.98).
 - **Suggest colours to buy**: leave a marker's dyes empty and the app suggests one.
   Each marker has an importance level: **high** (key or dim marker) gets bright, clean dyes;
   **medium** gets moderately bright ones; **low** (bright marker) is happy with a dim dye, which

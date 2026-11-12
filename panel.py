@@ -149,14 +149,33 @@ def worst_pairs(sim, fluors, n=5):
     return pd.DataFrame(pairs[:n], columns=["dye 1", "dye 2", "similarity"])
 
 
+# Similarity bands: below CAREFUL is fine, CAREFUL to TOO_CLOSE needs care, above is very hard to unmix
+CAREFUL, TOO_CLOSE = 0.90, 0.98
+
+
+def band(v):
+    return 0 if v < CAREFUL else 1 if v < TOO_CLOSE else 2
+
+
+def rank(key_max, all_max):
+    """Sort key for a panel, lower is better.
+
+    1. the band of the most similar pair in the whole panel: no pair should be too close
+    2. the band of the most similar pair that involves a key marker
+    3. the key pairs in steps of 0.05, so tiny gains there never cost the rest of the panel
+    4. the most similar pair in the whole panel
+    Every part only grows as dyes are added, so the search can cut branches with it.
+    """
+    return (band(all_max), band(key_max), int(np.ceil(key_max / 0.05 - 1e-9)), all_max, key_max)
+
+
 def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
     """Search for the best dye for each marker.
 
     options: {marker: [dyes the user has for it]}
     key_markers: markers that matter most
-    Panels are ranked by
-      1. the most similar pair that involves a key marker (lower is better)
-      2. the most similar pair in the whole panel (lower is better)
+    Panels are ranked by rank(): no pair too close first, then clean key markers,
+    then the most similar pair in the whole panel.
     Returns (list of (key_max, all_max, {marker: dye}), stopped_early).
     """
     # key markers first, then markers with fewer choices; this makes the search faster
@@ -165,16 +184,15 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
     names = list(sim.index)
     pos = {d: i for i, d in enumerate(names)}
     s = sim.to_numpy()
-    best = []            # heap of (-key_max, -all_max, counter, panel)
+    best = []            # heap of (negated rank, counter, key_max, all_max, panel)
     counter = itertools.count()
     steps = 0
     stopped = False
 
     def worst_kept():
         if len(best) < top:
-            return (np.inf, np.inf)
-        k, a, _, _ = best[0]
-        return (-k, -a)
+            return (np.inf,)
+        return tuple(-x for x in best[0][0])
 
     def search(i, chosen, key_max, all_max):
         nonlocal steps, stopped
@@ -184,11 +202,12 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
         if steps > max_steps:
             stopped = True
             return
-        if (key_max, all_max) >= worst_kept():
+        r = rank(key_max, all_max)
+        if r >= worst_kept():
             return
         if i == len(order):
             panel = dict(chosen)
-            item = (-key_max, -all_max, next(counter), panel)
+            item = (tuple(-x for x in r), next(counter), key_max, all_max, panel)
             if len(best) < top:
                 heapq.heappush(best, item)
             else:
@@ -208,11 +227,11 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000):
                     new_key = max(new_key, v)
             tries.append((new_key, new_all, dye))
         # most promising dye first, so good panels are found early and the rest is cut off
-        for new_key, new_all, dye in sorted(tries, key=lambda t: (t[0], t[1])):
+        for new_key, new_all, dye in sorted(tries, key=lambda t: rank(t[0], t[1])):
             chosen.append((marker, dye))
             search(i + 1, chosen, new_key, new_all)
             chosen.pop()
 
     search(0, [], 0.0, 0.0)
-    results = sorted([(-k, -a, p) for k, a, _, p in best], key=lambda r: (r[0], r[1]))
+    results = sorted([(k, a, p) for _, _, k, a, p in best], key=lambda r: rank(r[0], r[1]))
     return results, stopped

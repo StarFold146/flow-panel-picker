@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from panel import (LEVELS, brightness, complexity_index, find_panels,
+from panel import (CAREFUL, LEVELS, TOO_CLOSE, brightness, rank, complexity_index, find_panels,
                    signatures_from_spectra, similarity_matrix, suggest_pool, worst_pairs)
 
 st.set_page_config(page_title="Spectral Panel Picker", layout="wide")
@@ -23,15 +23,32 @@ def load_uploaded(file):
 
 
 def color_similarity(v):
-    if v >= 0.98:
+    if v >= TOO_CLOSE:
         return "background-color: #f4a6a6"
-    if v >= 0.90:
+    if v >= CAREFUL:
         return "background-color: #fde2a7"
     return ""
 
 
+def warn_pairs(fluors, labels, sim):
+    """Say out loud which pairs are too close, instead of leaving it to the heatmap."""
+    name = dict(zip(fluors, labels))
+    pairs = worst_pairs(sim, fluors, n=len(fluors) ** 2)
+    bad = pairs[pairs["similarity"] >= TOO_CLOSE]
+    care = pairs[(pairs["similarity"] >= CAREFUL) & (pairs["similarity"] < TOO_CLOSE)]
+    if len(bad):
+        st.error("Too similar to unmix well, change one of each pair: " + "; ".join(
+            f"{name[a]} and {name[b]} ({v:.2f})" for a, b, v in bad.itertuples(index=False)))
+    if len(care):
+        st.warning("Close, OK only if the two markers are not co-expressed and neither is dim: " + "; ".join(
+            f"{name[a]} and {name[b]} ({v:.2f})" for a, b, v in care.itertuples(index=False)))
+    if not len(bad) and not len(care):
+        st.success(f"No pair above {CAREFUL:.2f} similarity.")
+
+
 def show_panel(fluors, labels, sig, sim):
     """Heatmap, worst pairs and signature plot for one set of dyes."""
+    warn_pairs(fluors, labels, sim)
     sub = sim.loc[fluors, fluors].copy()
     sub.index = labels
     sub.columns = labels
@@ -148,8 +165,11 @@ with tab_pick:
                            "complexity": complexity_index(sig, fl)}
                     row.update(panel)
                     table.append(row)
-                table = pd.DataFrame(table).sort_values(
-                    ["key pairs max", "all pairs max", "complexity"]).head(10).reset_index(drop=True)
+                table = pd.DataFrame(table)
+                order = sorted(table.index, key=lambda i: (rank(table.at[i, "key pairs max"],
+                                                                table.at[i, "all pairs max"]),
+                                                           table.at[i, "complexity"]))
+                table = table.loc[order].head(10).reset_index(drop=True)
                 table.index = table.index + 1
                 st.session_state["results"] = table
                 st.session_state["suggested"] = suggested
