@@ -57,14 +57,14 @@ PROTEINS = {"GFP (EGFP)", "mCherry", "tdTomato", "CFSE", "CellTrace Violet", "Ce
 FIXABLE = {d for d in VIABILITY if d.startswith(("Zombie", "LIVE/DEAD Fixable", "FVD"))}
 
 # Dyes most vendors (BioLegend, Thermo, BD) sell on most clones at ordinary prices.
-# BD-only dyes (BUV, BB, RealBlue, V450/V500) and rarer ones are left out of suggestions by default.
+# BD-only dyes (BUV, BB, RealBlue, V450/V500), Thermo's Super Bright (same spectra as BV, rarer)
+# and other rarer dyes are left out of suggestions by default.
 COMMON = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Texas Red",
           "PE-eFluor 610", "PE-Cy5", "PE-Cy5.5", "PE-Cy7", "PerCP", "PerCP-Cy5.5",
           "PerCP-eFluor 710", "APC", "Alexa Fluor 647", "Alexa Fluor 700", "APC-Cy7",
           "APC-Fire 750", "APC-eFluor 780", "APC-H7", "eFluor 660", "Pacific Blue",
           "eFluor 450", "eFluor 506", "BV421", "BV510", "BV570", "BV605", "BV650", "BV711",
-          "BV785", "Super Bright 600", "Super Bright 645", "Super Bright 702",
-          "DAPI", "7-AAD", "PI", "SYTOX Blue", "SYTOX AADvanced"} | FIXABLE
+          "BV785", "DAPI", "7-AAD", "PI", "SYTOX Blue", "SYTOX AADvanced"} | FIXABLE
 
 # Importance level -> lowest brightness worth suggesting
 LEVELS = {"high": 4, "medium": 3, "low": 1}
