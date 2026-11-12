@@ -66,6 +66,18 @@ COMMON = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Texa
           "eFluor 450", "BV421", "BV510", "BV570", "BV605", "BV650", "BV711",
           "BV785", "DAPI", "7-AAD", "PI", "SYTOX Blue", "SYTOX AADvanced"} | FIXABLE
 
+# The classic colours nearly every lab knows and every vendor sells on most clones:
+# no vendor-specific variants (eFluor, Fire, PE-Texas Red, PerCP-eFluor 710 ...)
+CLASSIC = {"FITC", "Alexa Fluor 488", "PE", "PE-Dazzle 594", "PE-CF594", "PE-Cy5", "PE-Cy7",
+           "PerCP-Cy5.5", "APC", "Alexa Fluor 647", "Alexa Fluor 700", "APC-Cy7", "Pacific Blue",
+           "BV421", "BV510", "BV605", "BV650", "BV711", "BV785",
+           "DAPI", "7-AAD", "PI", "Zombie NIR", "Zombie Aqua", "Zombie UV", "Zombie Violet",
+           "LIVE/DEAD Fixable Blue", "LIVE/DEAD Fixable Aqua", "LIVE/DEAD Fixable Near-IR",
+           "LIVE/DEAD Fixable Violet", "FVD eFluor 780", "FVD eFluor 506"}
+
+# Which dyes suggestions may use
+TIERS = {"classic": CLASSIC, "common": COMMON, "all": None}
+
 # Importance level -> lowest brightness worth suggesting
 LEVELS = {"high": 4, "medium": 3, "low": 1}
 
@@ -94,7 +106,7 @@ def needs_perm(name):
     return any(w in n for w in INSIDE)
 
 
-def suggest_pool(marker, level, fixed, sim, n=20, common_only=True, fixable=True):
+def suggest_pool(marker, level, fixed, sim, n=20, tier="classic", fixable=True):
     """Dyes worth trying for a marker the user has no antibody for yet.
 
     fixed: dyes that are certain to be in the panel (markers with a single option).
@@ -104,8 +116,9 @@ def suggest_pool(marker, level, fixed, sim, n=20, common_only=True, fixable=True
     leaving the bright dyes for the markers that need them.
     """
     dyes = list(sim.index)
-    if common_only and len([d for d in dyes if d in COMMON]) >= 10:
-        dyes = [d for d in dyes if d in COMMON]
+    allowed = TIERS[tier]
+    if allowed is not None and len([d for d in dyes if d in allowed]) >= 10:
+        dyes = [d for d in dyes if d in allowed]
     if is_viability_marker(marker):
         pool = [d for d in dyes if d in VIABILITY]
         # fixed cells need a fixable dye; unfixed cells can use the cheap DNA dyes (DAPI, 7-AAD, ...)

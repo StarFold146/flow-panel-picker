@@ -94,10 +94,12 @@ else:
                     "will differ from the instrument.")
 sim = similarity_matrix(sig)
 all_dyes = sorted(sig.index)
-common_only = st.sidebar.toggle(
-    "Suggest common dyes only", value=True,
-    help="On: suggestions use dyes most vendors sell on most clones (no BD-only BUV/BB, "
-         "no rarer dyes). Off: suggest from every dye in the list.")
+tier = st.sidebar.radio(
+    "Suggest dyes from", ["classic", "common", "all"],
+    format_func={"classic": "Classic colours (BV, PE, APC, FITC ...)",
+                 "common": "+ vendor variants (eFluor, Fire, PerCP-eFluor 710 ...)",
+                 "all": "Every dye (incl. BD-only BUV/BB)"}.get,
+    help="Only changes what is suggested for markers with no dyes; dyes you pick yourself are always used.")
 
 st.sidebar.markdown("""
 **Colour guide**
@@ -155,7 +157,7 @@ with tab_pick:
     suggested = set()
     for name, dyes, level in rows:
         if not dyes:
-            options[name] = suggest_pool(name, level, fixed, sim, common_only=common_only,
+            options[name] = suggest_pool(name, level, fixed, sim, tier=tier,
                                          fixable=fixable)
             suggested.add(name)
 

@@ -36,8 +36,9 @@ streamlit run app.py
   Each marker has an importance level: **high** (key or dim marker) gets bright, clean dyes;
   **medium** gets moderately bright ones; **low** (bright marker) is happy with a dim dye, which
   leaves the bright ones for the markers that need them. Live/dead markers get viability dyes.
-  By default suggestions only use common dyes that most vendors sell (no BD-only BUV/BB dyes, no rarer
-  dyes; switch this off in the sidebar), and live/dead markers get fixable dyes when the panel is
+  By default suggestions only use the classic colours every vendor sells (BV421-785, FITC/AF488, PE and
+  its Cy/Dazzle tandems, PerCP-Cy5.5, APC, AF647, AF700, APC-Cy7, Pacific Blue); the sidebar can add
+  vendor variants (eFluor, Fire, PerCP-eFluor 710 ...) or every dye including BD-only BUV/BB, and live/dead markers get fixable dyes when the panel is
   fixed and permeabilised (ticked automatically when a marker such as FOXP3, Ki67 or a cytokine is
   in the panel), otherwise the cheaper DAPI, 7-AAD, PI or SYTOX are suggested. With many markers the app builds panels and improves them one marker at a
   time instead of trying every combination, and shows panels that differ in at least a quarter of
