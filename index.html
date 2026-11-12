@@ -11,15 +11,17 @@
     <script type="module">
       // Runs app.py in the browser with stlite (no server needed).
       import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@1.9.2/build/stlite.js";
+      // bump on every release so browsers don't mix new and cached old files
+      const v = "2026-11-12b";
       mount(
         {
           requirements: ["plotly", "jinja2", "openpyxl"],
           entrypoint: "app.py",
           files: {
-            "app.py": { url: "./app.py" },
-            "panel.py": { url: "./panel.py" },
-            "export.py": { url: "./export.py" },
-            "data/signatures.csv": { url: "./data/signatures.csv" },
+            "app.py": { url: `./app.py?v=${v}` },
+            "panel.py": { url: `./panel.py?v=${v}` },
+            "export.py": { url: `./export.py?v=${v}` },
+            "data/signatures.csv": { url: `./data/signatures.csv?v=${v}` },
           },
           streamlitConfig: { "client.toolbarMode": "viewer" },
         },
