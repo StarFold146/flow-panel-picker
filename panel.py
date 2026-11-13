@@ -341,7 +341,7 @@ def rank(key_max, all_max, mis=0):
     return (band(all_max), band(key_max), step, mis, all_max, key_max)
 
 
-def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000, info=None):
+def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000, info=None, apart=()):
     """Search for the best dye for each marker.
 
     options: {marker: [dyes the user has for it]}
@@ -349,6 +349,7 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000, info=Non
     Panels are ranked by rank(): no pair too close first, then clean key markers,
     then the most similar pair in the whole panel.
     info: {marker: (expression, inside)} for misfit(); missing markers count as fitting.
+    apart: pairs of markers never on the same cell (apart_pairs); they count APART less.
     Returns (list of (key_max, all_max, misfit, {marker: dye}), stopped_early).
     """
     info = info or {}
@@ -397,6 +398,8 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000, info=Non
             new_key, new_all = key_max, all_max
             for other_marker, other_dye in chosen:
                 v = s[pos[dye], pos[other_dye]]
+                if frozenset((marker, other_marker)) in apart and v < TOO_CLOSE:
+                    v -= APART
                 new_all = max(new_all, v)
                 if marker in key_markers or other_marker in key_markers:
                     new_key = max(new_key, v)
@@ -412,7 +415,7 @@ def find_panels(options, key_markers, sim, top=10, max_steps=2_000_000, info=Non
     return results, stopped
 
 
-def panel_score(panel, key_markers, s, pos, info=None):
+def panel_score(panel, key_markers, s, pos, info=None, apart=()):
     """(key_max, all_max, misfit) of a {marker: dye} panel, using the plain similarity array."""
     info = info or {}
     items = list(panel.items())
@@ -420,13 +423,15 @@ def panel_score(panel, key_markers, s, pos, info=None):
     key_max = all_max = 0.0
     for (m1, d1), (m2, d2) in itertools.combinations(items, 2):
         v = s[pos[d1], pos[d2]]
+        if frozenset((m1, m2)) in apart and v < TOO_CLOSE:
+            v -= APART
         all_max = max(all_max, v)
         if m1 in key_markers or m2 in key_markers:
             key_max = max(key_max, v)
     return key_max, all_max, mis
 
 
-def local_panels(options, key_markers, sim, restarts=40, seed=0, info=None):
+def local_panels(options, key_markers, sim, restarts=40, seed=0, info=None, apart=()):
     """For many markers with many choices, where trying every combination is too slow.
 
     Each round builds a panel greedily (key markers first, in a shuffled order, picking
@@ -450,14 +455,14 @@ def local_panels(options, key_markers, sim, restarts=40, seed=0, info=None):
             for d in options[m]:
                 if d in used:
                     continue
-                tries.append((rank(*panel_score({**panel, m: d}, key_markers, s, pos, info)), d))
+                tries.append((rank(*panel_score({**panel, m: d}, key_markers, s, pos, info, apart)), d))
             if not tries:
                 break
             tries.sort()
             panel[m] = tries[min(int(rng.integers(0, 3)), len(tries) - 1)][1]
         if len(panel) < len(options):
             continue
-        best = rank(*panel_score(panel, key_markers, s, pos, info))
+        best = rank(*panel_score(panel, key_markers, s, pos, info, apart))
         better = True
         while better:
             better = False
@@ -466,18 +471,18 @@ def local_panels(options, key_markers, sim, restarts=40, seed=0, info=None):
                 for d in options[m]:
                     if d in used:
                         continue
-                    r = rank(*panel_score({**panel, m: d}, key_markers, s, pos, info))
+                    r = rank(*panel_score({**panel, m: d}, key_markers, s, pos, info, apart))
                     if r < best:
                         panel, best, better = {**panel, m: d}, r, True
                         used = set(panel.values())
             for m1, m2 in itertools.combinations(options, 2):
                 d1, d2 = panel[m1], panel[m2]
                 if d2 in options[m1] and d1 in options[m2]:
-                    r = rank(*panel_score({**panel, m1: d2, m2: d1}, key_markers, s, pos, info))
+                    r = rank(*panel_score({**panel, m1: d2, m2: d1}, key_markers, s, pos, info, apart))
                     if r < best:
                         panel, best, better = {**panel, m1: d2, m2: d1}, r, True
         found[tuple(sorted(panel.items()))] = panel
-    results = [(*panel_score(p, key_markers, s, pos, info), p) for p in found.values()]
+    results = [(*panel_score(p, key_markers, s, pos, info, apart), p) for p in found.values()]
     results.sort(key=lambda r: rank(*r[:3]))
     return results
 
@@ -524,6 +529,24 @@ def alternatives(panel, options, sim, n=3):
 # Co-expressed markers need more room than the 0.90 band: OMIP-105 kept them below 0.70
 # (and below 0.50 when strongly co-expressed).
 CO_EXPRESSED = 0.70
+# Two markers never on the same cell can share closer colours: spill from one lands on cells
+# that don't carry the other. Their similarity counts this much less when ranking.
+APART = 0.10
+
+
+def parse_cells(text):
+    """'T, Treg' -> {'t', 'treg'}; empty means unknown (assumed on every cell)."""
+    return {t.strip().lower() for t in re.split(r"[,;/]", text or "") if t.strip()}
+
+
+def apart_pairs(cells):
+    """Pairs of markers that never share a cell: both have cell types and none in common.
+
+    cells: {marker: set of cell types}. Returns a set of frozenset({marker1, marker2}).
+    """
+    names = list(cells)
+    return {frozenset((a, b)) for a, b in itertools.combinations(names, 2)
+            if cells[a] and cells[b] and not cells[a] & cells[b]}
 
 # Markers whose epitope suffers from fixation: stain them before fixing (Lemaitre 2024)
 FIX_SENSITIVE = ("cd62l", "cd69", "tcrb", "tcr-b", "b220", "cd19", "cxcr5", "xcr1")

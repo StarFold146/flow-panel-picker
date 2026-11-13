@@ -60,11 +60,18 @@ streamlit run app.py
   check that your clone is sold in that colour. The sidebar links to panel builders that know
   what is sold (FluoroFinder, Biocompare, Thermo Fisher, BioLegend, BD). Tick suggested colours
   you can't buy and the app searches again without them.
+- **Markers on different cells (optional)**: switch on *My markers are on different cell types*
+  and a **Cells** column appears (for example `T, Treg` or `B`). Markers with no cell type in
+  common never share a cell, so spill between their colours does little harm (OMIP-105 placed its
+  closest pairs this way): their similarity counts 0.10 less when ranking, pairs at 0.98 or above
+  still count in full, and the 0.70 note is only shown for markers on the same cells. An empty Cells
+  box means "all cells" (right for live/dead). Leave the switch off for a panel of one cell type.
 - **Download**: an Excel file with an overview of all panels and one sheet per panel, sorted
   and coloured by laser, with key markers starred, empty Clone and Vendor columns to fill in,
   notes and a disclaimer. The plain CSV is still there.
 - **Load / save a marker list**: a CSV with columns `marker`, `dyes` (separated by `;`, empty = suggest)
-  `importance` (high / medium / low) and `expression` (dim / medium / bright, empty = guess) fills in every row at once; *Download this list* saves the
+  `importance` (high / medium / low), `expression` (dim / medium / bright, empty = guess) and optionally
+  `cells` fills in every row at once; *Download this list* saves the
   current rows in the same format. Handy for keeping the colours you know your vendors sell.
 - **Check a panel**: pick the dyes of an existing panel and see the similarity matrix,
   the most similar pairs and the signatures.
@@ -95,7 +102,6 @@ example `PE-CF594 / PE-Dazzle 594 / PE-eFluor 610 / PE-Texas Red` or `APC-Cy7 / 
 ## Not included yet
 
 - Spillover spreading from real data
-- Which markers are on the same cells (the 0.70 note is shown for every pair)
 
 ## License
 
